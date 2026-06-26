@@ -17,8 +17,10 @@ mongoose.connect(process.env.MONGODB_URI)
 const voteRoutes = require('./routes/voteRoutes');
 
 // Use routes
-app.use('/api/vote', voteRoutes);
-
-// Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Export the app for Vercel. When run directly (node server.js), start the server locally.
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+} else {
+  module.exports = app;
+}
