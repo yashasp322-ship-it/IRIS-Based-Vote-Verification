@@ -32,7 +32,7 @@ router.post('/scan-iris', upload.single('image'), async (req, res) => {
             contentType: req.file.mimetype,
         });
 
-        const pythonServiceUrl = process.env.IRIS_ENGINE_URL || 'http://localhost:8000';
+        const pythonServiceUrl = process.env.IRIS_ENGINE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/engine` : 'http://localhost:8000');
 
         const response = await axios.post(`${pythonServiceUrl}/verify`, formData, {
             headers: {
