@@ -20,6 +20,40 @@ export default function App() {
   const [verifyError, setVerifyError] = useState('');
 
   const [adminId, setAdminId] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleAdminReset = async () => {
+    const enteredId = window.prompt('🔐 Enter Admin ID to reset the database:');
+    if (!enteredId) return;
+    if (enteredId.toUpperCase() !== 'ADMIN123') {
+      alert('❌ Invalid Admin ID. Access denied.');
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_id: enteredId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      // Clear the localStorage lock and reset app state
+      localStorage.removeItem('iris_terminal_locked');
+      setAppState('scan');
+      setIrisData(null);
+      setScanError('');
+      setTrackingHash('');
+      setVerificationResult(null);
+      setVerifyError('');
+      alert('✅ Database reset! You can now test from fresh.');
+    } catch (err) {
+      alert('❌ Reset failed: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -211,6 +245,14 @@ export default function App() {
               className={`transition-all hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${appState === 'tracker' ? 'border-b-4 border-[#D4FF2A]' : ''}`}
             >
               Public Tracker
+            </button>
+            <button
+              onClick={handleAdminReset}
+              disabled={isResetting}
+              title="Admin only — resets iris DB and unlocks terminal"
+              className="px-3 py-1 bg-red-600 text-white border-2 border-black font-black text-xs uppercase shadow-[3px_3px_0_0_#000] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isResetting ? '⏳ Resetting…' : '🔄 Reset DB'}
             </button>
           </nav>
         </div>
