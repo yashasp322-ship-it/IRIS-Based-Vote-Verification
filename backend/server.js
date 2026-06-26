@@ -15,6 +15,7 @@ mongoose.connect(process.env.MONGODB_URI)
 .catch(err => console.error('MongoDB connection error:', err));
 
 const voteRoutes = require('./routes/voteRoutes');
+app.use('/api', voteRoutes);
 
 // Use routes
 // Export the app for Vercel. When run directly (node server.js), start the server locally.
