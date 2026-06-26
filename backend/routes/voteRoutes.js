@@ -5,8 +5,7 @@ const Ledger = require('../models/Ledger');
 const VoteReceipt = require('../models/VoteReceipt');
 const merkleService = require('../services/merkleService');
 const multer = require('multer');
-const axios = require('axios');
-const FormData = require('form-data');
+const { processIrisImage, clearRegistered } = require('../services/irisEngine');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -19,36 +18,38 @@ Ledger.find({}).sort({ block_index: 1 }).then(records => {
 });
 
 // POST /scan-iris
-// Forwards the uploaded image to the Python Iris Engine
+// Runs iris recognition locally using the JS engine (no Python/external service needed)
 router.post('/scan-iris', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No image uploaded' });
         }
 
-        const formData = new FormData();
-        formData.append('image', req.file.buffer, {
-            filename: req.file.originalname,
-            contentType: req.file.mimetype,
-        });
+        const result = await processIrisImage(req.file.buffer);
 
-        const pythonServiceUrl = process.env.IRIS_ENGINE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/engine` : 'http://localhost:8000');
+        if (!result.success) {
+            return res.status(400).json({ error: result.error, iris_id: result.iris_id });
+        }
 
-        const response = await axios.post(`${pythonServiceUrl}/verify`, formData, {
-            headers: {
-                ...formData.getHeaders(),
-            },
-        });
-
-        res.status(200).json(response.data);
+        res.status(200).json({ irisId: result.iris_id, status: result.message });
 
     } catch (error) {
-        console.error('Error scanning iris:', error.response?.data || error.message);
-        const status = error.response?.status || 500;
-        const detail = error.response?.data?.detail || 'Verification failed in Iris Engine';
-        res.status(status).json({ error: detail });
+        console.error('Error scanning iris:', error.message);
+        res.status(500).json({ error: 'Iris verification failed: ' + error.message });
     }
 });
+
+// POST /admin/reset
+// Clears all registered iris hashes (admin only)
+router.post('/admin/reset', (req, res) => {
+    const { admin_id } = req.body;
+    if (!admin_id || admin_id.toUpperCase() !== 'ADMIN123') {
+        return res.status(403).json({ error: 'Invalid admin ID' });
+    }
+    clearRegistered();
+    res.status(200).json({ success: true, message: 'Database reset successfully' });
+});
+
 
 // POST /submit
 // Handles the submission of a vote after Iris validation
