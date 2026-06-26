@@ -6,16 +6,9 @@ const VoteReceipt = require('../models/VoteReceipt');
 const merkleService = require('../services/merkleService');
 const multer = require('multer');
 const { processIrisImage, clearRegistered } = require('../services/irisEngine');
+const connectDB = require('../services/db');
 
 const upload = multer({ storage: multer.memoryStorage() });
-
-// Initialize merkle tree from DB on startup
-Ledger.find({}).sort({ block_index: 1 }).then(records => {
-    merkleService.initializeTree(records);
-    console.log(`Merkle tree initialized with ${records.length} leaves.`);
-}).catch(err => {
-    console.error("Failed to initialize Merkle tree:", err);
-});
 
 // POST /scan-iris
 // Runs iris recognition locally using the JS engine (no Python/external service needed)
@@ -50,16 +43,12 @@ router.post('/admin/reset', (req, res) => {
     res.status(200).json({ success: true, message: 'Database reset successfully' });
 });
 
-
 // POST /submit
 // Handles the submission of a vote after Iris validation
 router.post('/submit', async (req, res) => {
     try {
-        // Guard: fail fast if MongoDB is not connected
-        const mongoose = require('mongoose');
-        if (mongoose.connection.readyState !== 1) {
-            return res.status(503).json({ error: 'Database not connected. Ensure MONGODB_URI is set in Vercel environment variables.' });
-        }
+        // Ensure DB is connected (handles Vercel cold starts)
+        await connectDB();
 
         const { irisId, ballotData } = req.body;
 
@@ -74,7 +63,11 @@ router.post('/submit', async (req, res) => {
         const timestamp = Date.now();
         const trackingHash = crypto.createHash('sha256').update(`${irisId}-${timestamp}`).digest('hex');
 
-        // Get current block index
+        // Get current block index (initialize tree from DB if needed on cold start)
+        if (merkleService.leaves.length === 0) {
+            const existingRecords = await Ledger.find({}).sort({ block_index: 1 });
+            merkleService.initializeTree(existingRecords);
+        }
         const blockIndex = merkleService.leaves.length;
 
         // Save to Ledger
@@ -95,7 +88,7 @@ router.post('/submit', async (req, res) => {
             timestamp,
             block_index: blockIndex,
             merkle_root: newRoot,
-            signature: 'digital-signature-placeholder' // Would be signed by the server's private key
+            signature: 'digital-signature-placeholder'
         });
         await receipt.save();
 
@@ -119,12 +112,21 @@ router.post('/submit', async (req, res) => {
 // Fetches the Merkle proof for a given tracking hash
 router.get('/verify/:hash', async (req, res) => {
     try {
+        // Ensure DB is connected (handles Vercel cold starts)
+        await connectDB();
+
         const trackingHash = req.params.hash;
 
         // Check if it exists in Ledger
         const ledgerEntry = await Ledger.findOne({ tracking_hash: trackingHash });
         if (!ledgerEntry) {
             return res.status(404).json({ error: 'Tracking hash not found in ledger' });
+        }
+
+        // Rebuild Merkle tree if cold start wiped the in-memory state
+        if (merkleService.leaves.length === 0) {
+            const existingRecords = await Ledger.find({}).sort({ block_index: 1 });
+            merkleService.initializeTree(existingRecords);
         }
 
         // Get proof from Merkle Service
@@ -139,8 +141,8 @@ router.get('/verify/:hash', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error verifying hash:', error);
-        res.status(500).json({ error: 'Failed to verify tracking hash' });
+        console.error('Error verifying hash:', error.message || error);
+        res.status(500).json({ error: 'Failed to verify tracking hash: ' + (error.message || 'Unknown error') });
     }
 });
 
