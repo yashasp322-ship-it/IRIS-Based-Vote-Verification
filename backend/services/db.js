@@ -1,50 +1,46 @@
 /**
- * db.js
- * 
- * Mongoose connection helper for Vercel serverless functions.
- * 
- * On Vercel, each function invocation may be a cold start where
- * mongoose.connect() is called asynchronously. We use a cached
- * connection pattern so:
- *  - First request: opens the connection and awaits it fully.
- *  - Subsequent requests (warm container): reuses the existing connection.
+ * db.js — Mongoose connection helper for Vercel serverless.
+ *
+ * Uses a global cached connection so warm containers reuse the existing
+ * connection instead of opening a new one every invocation.
  */
 
 const mongoose = require('mongoose');
 
-let cached = global._mongooseConnection;
-
+// Use a global variable so the connection survives between hot-reload invocations
+let cached = global._mongoConn;
 if (!cached) {
-  cached = global._mongooseConnection = { conn: null, promise: null };
+  cached = global._mongoConn = { conn: null, promise: null };
 }
 
 async function connectDB() {
-  // If we already have a live connection, return it immediately
+  // Already connected — return immediately
   if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
-  // If a connection attempt is already in progress, wait for it
+  if (!process.env.MONGODB_URI) {
+    throw new Error(
+      'MONGODB_URI environment variable is not set. ' +
+      'Add it in Vercel → Project → Settings → Environment Variables.'
+    );
+  }
+
+  // Start a new connection attempt if none is in progress
   if (!cached.promise) {
-    const uri = process.env.MONGODB_URI;
-
-    if (!uri) {
-      throw new Error(
-        'MONGODB_URI is not set. Add it to your Vercel environment variables.'
-      );
-    }
-
-    cached.promise = mongoose
-      .connect(uri, {
-        bufferCommands: false,  // Don't buffer — fail fast if not connected
-        serverSelectionTimeoutMS: 10000, // 10s timeout
-      })
-      .then((m) => m)
-      .catch((err) => {
-        // Reset so the next request retries
-        cached.promise = null;
-        throw err;
-      });
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 30000,
+    }).then(m => {
+      console.log('[DB] Connected to MongoDB');
+      return m;
+    }).catch(err => {
+      // Reset so the next request retries from scratch
+      cached.promise = null;
+      console.error('[DB] Connection failed:', err.message);
+      throw err;
+    });
   }
 
   cached.conn = await cached.promise;

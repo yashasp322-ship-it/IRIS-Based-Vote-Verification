@@ -226,7 +226,7 @@ export default function App() {
 
       {/* Header */}
       <header className="border-b-4 border-black bg-white/90 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2 font-black text-2xl tracking-tight uppercase">
             <ScanFace className="w-8 h-8" />
             IrisSecure
@@ -250,7 +250,8 @@ export default function App() {
               onClick={handleAdminReset}
               disabled={isResetting}
               title="Admin only — resets iris DB and unlocks terminal"
-              className="px-3 py-1 bg-red-600 text-white border-2 border-black font-black text-xs uppercase shadow-[3px_3px_0_0_#000] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#dc2626', color: '#fff', border: '2px solid #000', boxShadow: '3px 3px 0 #000', padding: '4px 12px', fontWeight: 900, fontSize: '11px', textTransform: 'uppercase', cursor: 'pointer', letterSpacing: '0.05em' }}
+              className="transition-all hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isResetting ? '⏳ Resetting…' : '🔄 Reset DB'}
             </button>
