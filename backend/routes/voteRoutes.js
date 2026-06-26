@@ -55,11 +55,20 @@ router.post('/admin/reset', (req, res) => {
 // Handles the submission of a vote after Iris validation
 router.post('/submit', async (req, res) => {
     try {
+        // Guard: fail fast if MongoDB is not connected
+        const mongoose = require('mongoose');
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ error: 'Database not connected. Ensure MONGODB_URI is set in Vercel environment variables.' });
+        }
+
         const { irisId, ballotData } = req.body;
 
         if (!irisId || !ballotData) {
             return res.status(400).json({ error: 'irisId and ballotData are required' });
         }
+
+        // Normalize ballot data to a plain string for storage
+        const normalizedBallot = typeof ballotData === 'string' ? ballotData : JSON.stringify(ballotData);
 
         // Generate blinded tracking hash using crypto
         const timestamp = Date.now();
@@ -73,7 +82,7 @@ router.post('/submit', async (req, res) => {
             tracking_hash: trackingHash,
             timestamp,
             block_index: blockIndex,
-            ballot_data: ballotData // in a real system, this would be encrypted
+            ballot_data: normalizedBallot
         });
         await ledgerEntry.save();
 
@@ -101,8 +110,8 @@ router.post('/submit', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error submitting vote:', error);
-        res.status(500).json({ error: 'Failed to submit vote' });
+        console.error('Error submitting vote:', error.message || error);
+        res.status(500).json({ error: 'Failed to submit vote: ' + (error.message || 'Unknown error') });
     }
 });
 

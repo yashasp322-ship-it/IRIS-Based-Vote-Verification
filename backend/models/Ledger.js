@@ -15,7 +15,7 @@ const ledgerSchema = new mongoose.Schema({
         required: true
     },
     ballot_data: {
-        type: String, // encrypted/blinded ballot data
+        type: mongoose.Schema.Types.Mixed, // accepts string or object
         required: true
     }
 });
