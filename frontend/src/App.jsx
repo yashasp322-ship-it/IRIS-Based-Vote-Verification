@@ -2,23 +2,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScanFace, CheckCircle2, ShieldCheck, Search, Download, ChevronRight, Activity, Camera } from 'lucide-react';
 import SHA256 from 'crypto-js/sha256';
 
-const API_BASE = 'http://localhost:5000/api/vote';
+const API_BASE = window.location.origin + "/_backend";
 
 export default function App() {
   // Initialize state from localStorage to prevent refresh bypass
   const [appState, setAppState] = useState(() => {
     return localStorage.getItem('iris_terminal_locked') === 'true' ? 'admin_alert' : 'scan';
   });
-  
+
   const [isScanning, setIsScanning] = useState(false);
   const [irisData, setIrisData] = useState(null);
   const [scanError, setScanError] = useState('');
-  
+
   const [trackingHash, setTrackingHash] = useState('');
   const [verificationResult, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
-  
+
   const [adminId, setAdminId] = useState('');
 
   const videoRef = useRef(null);
@@ -56,7 +56,7 @@ export default function App() {
 
   const handleCapture = () => {
     if (!videoRef.current || !canvasRef.current) return;
-    
+
     // Draw current video frame to canvas
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -64,7 +64,7 @@ export default function App() {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
+
     // Convert to blob and send
     canvas.toBlob((blob) => {
       if (blob) {
@@ -77,7 +77,7 @@ export default function App() {
   const sendIrisToBackend = async (file) => {
     setIsScanning(true);
     setScanError('');
-    
+
     const formData = new FormData();
     formData.append('image', file);
 
@@ -86,9 +86,9 @@ export default function App() {
         method: 'POST',
         body: formData,
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to scan iris');
       }
@@ -155,11 +155,11 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE}/verify/${trackingHash}`);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Verification failed');
       }
-      
+
       setVerificationResult(data);
     } catch (err) {
       setVerifyError(err.message);
@@ -179,7 +179,7 @@ export default function App() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-white text-black font-sans selection:bg-[#D4FF2A] selection:text-black relative"
       style={{
         backgroundImage: 'url(/bg.png)',
@@ -198,14 +198,14 @@ export default function App() {
             IrisSecure
           </div>
           <nav className="flex gap-6 text-sm font-bold uppercase">
-            <button 
-              onClick={() => setAppState('scan')} 
+            <button
+              onClick={() => setAppState('scan')}
               disabled={appState === 'admin_alert'}
               className={`transition-all hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${appState === 'scan' || appState === 'validation' ? 'border-b-4 border-[#D4FF2A]' : ''}`}
             >
               Voting Portal
             </button>
-            <button 
+            <button
               onClick={() => setAppState('tracker')}
               disabled={appState === 'admin_alert'}
               className={`transition-all hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${appState === 'tracker' ? 'border-b-4 border-[#D4FF2A]' : ''}`}
@@ -232,22 +232,22 @@ export default function App() {
 
             <div className="bg-white border-4 border-black flex flex-col items-center justify-center p-4 shadow-[8px_8px_0_0_#000] relative">
               <div className={`relative w-full aspect-square border-4 ${isScanning ? 'border-[#D4FF2A] animate-pulse' : 'border-black'} bg-black overflow-hidden flex items-center justify-center`}>
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted 
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
                   className={`w-full h-full object-cover scale-150 transform transition-transform duration-1000 ${streamActive ? 'opacity-100' : 'opacity-0'}`}
                 />
                 {!streamActive && <ScanFace className="w-24 h-24 text-white/20 absolute z-10" />}
                 {isScanning && <div className="absolute inset-0 bg-[#D4FF2A]/30 mix-blend-multiply z-10" />}
                 <canvas ref={canvasRef} className="hidden" />
-                
+
                 {/* Aiming crosshair UI overlay */}
                 <div className="absolute inset-0 pointer-events-none border-[12px] border-black/20 m-8 rounded-full z-20" />
                 <div className="absolute inset-1/2 w-4 h-4 -ml-2 -mt-2 bg-[#D4FF2A]/80 rounded-full z-20" />
               </div>
-              
+
               <div className="mt-8 w-full">
                 <button
                   onClick={handleCapture}
@@ -283,8 +283,8 @@ export default function App() {
                   </p>
                 </div>
                 <p className="font-bold text-white/80 uppercase text-lg leading-relaxed">
-                  The captured Iris signature already exists in the immutable ledger. 
-                  <br/><br/>
+                  The captured Iris signature already exists in the immutable ledger.
+                  <br /><br />
                   Further attempts have been blocked. The Election Commission booth administrator has been notified.
                 </p>
               </div>
@@ -412,7 +412,7 @@ export default function App() {
             <div className="text-center p-6 bg-white border-4 border-black shadow-[8px_8px_0_0_#000]">
               <h1 className="text-3xl font-black uppercase">Public Tracker</h1>
             </div>
-            
+
             {verifyError && (
               <div className="p-4 bg-red-100 border-4 border-red-500 text-red-700 font-bold uppercase shadow-[4px_4px_0_0_#ef4444]">
                 {verifyError}
@@ -454,7 +454,7 @@ export default function App() {
                     <Download className="w-6 h-6" />
                   </button>
                 </div>
-                
+
                 <div className="p-6 space-y-6 font-mono font-bold text-sm uppercase">
                   <div>
                     <span className="block mb-2 text-black/50">Merkle Root</span>
