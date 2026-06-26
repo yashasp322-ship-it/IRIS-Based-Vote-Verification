@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScanFace, CheckCircle2, ShieldCheck, Search, Download, ChevronRight, Activity, Camera } from 'lucide-react';
 import SHA256 from 'crypto-js/sha256';
 
-const API_BASE = window.location.origin + "/_backend";
+const API_BASE = window.location.origin + "/api";
 
 export default function App() {
   // Initialize state from localStorage to prevent refresh bypass
